@@ -4,6 +4,7 @@ insert into public.profiles (id, full_name, role)
 select u.id, v.full_name, v.role::public.user_role
 from (values
   ('manager@test.ru', 'Иван Петров (прораб)', 'manager'),
+  ('manager2@test.ru', 'Ольга Васильева (инженер ПТО)', 'manager'),
   ('worker1@test.ru', 'Алексей Смирнов', 'executor'),
   ('worker2@test.ru', 'Дмитрий Козлов', 'executor')
 ) as v(email, full_name, role)

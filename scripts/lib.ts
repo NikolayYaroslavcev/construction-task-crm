@@ -5,7 +5,7 @@ const key = process.env.VITE_SUPABASE_ANON_KEY!
 
 export const anon = () => createClient(url, key, { auth: { persistSession: false } })
 
-export async function signIn(who: 'MANAGER' | 'WORKER1' | 'WORKER2'): Promise<{ db: SupabaseClient; id: string }> {
+export async function signIn(who: 'MANAGER' | 'MANAGER2' | 'WORKER1' | 'WORKER2'): Promise<{ db: SupabaseClient; id: string }> {
   const db = anon()
   const { data, error } = await db.auth.signInWithPassword({
     email: process.env[`${who}_EMAIL`]!,

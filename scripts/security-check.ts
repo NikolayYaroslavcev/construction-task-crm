@@ -113,6 +113,52 @@ await check('cannot assign a task to a non-executor', async () => {
   return !!error
 })
 
+await check('role helper is not reachable through the API', async () => {
+  const { error } = await w1.db.rpc('is_manager')
+  return !!error
+})
+
+console.log('— Allowed path end to end')
+const manager2 = await signIn('MANAGER2')
+const cycleTitle = `cycle test ${Date.now()}`
+const { data: cycle } = await manager.db
+  .from('tasks')
+  .insert({ title: cycleTitle, object_id: w1Task.object_id, assignee_id: w1.id })
+  .select()
+  .single()
+const step = (who: typeof w1, to: string, comment?: string) =>
+  who.db.rpc('change_task_status', { p_task_id: cycle!.id, p_to: to, p_comment: comment })
+await check('executor: new -> in_progress -> review', async () => {
+  return !(await step(w1, 'in_progress')).error && !(await step(w1, 'review')).error
+})
+await check('second manager: review -> rework with a comment', async () => !(await step(manager2, 'rework', 'Переделать')).error)
+await check('executor: rework -> in_progress -> review', async () => {
+  return !(await step(w1, 'in_progress')).error && !(await step(w1, 'review')).error
+})
+await check('manager: review -> accepted', async () => !(await step(manager, 'accepted')).error)
+await check('accepted is final: no way back', async () => {
+  const a = await step(w1, 'in_progress')
+  const b = await step(manager, 'rework', 'ещё раз')
+  return !!a.error && !!b.error
+})
+await check('history has every step with the right actor and comment', async () => {
+  const { data } = await w1.db.from('task_status_history').select('*').eq('task_id', cycle!.id).order('id')
+  const moves = data!.map((h) => `${h.from_status ?? '-'}>${h.to_status}`).join(' ')
+  const rework = data!.find((h) => h.to_status === 'rework')
+  return (
+    moves === '->new new>in_progress in_progress>review review>rework rework>in_progress in_progress>review review>accepted' &&
+    rework?.changed_by === manager2.id &&
+    rework?.comment === 'Переделать' &&
+    data![0].changed_by === manager.id
+  )
+})
+await check('history survives task deletion (audit log, managers only)', async () => {
+  await manager.db.from('tasks').delete().eq('id', cycle!.id)
+  const { data: kept } = await manager.db.from('task_status_history').select('*').is('task_id', null).eq('task_title', cycleTitle)
+  const { data: hidden } = await w1.db.from('task_status_history').select('*').is('task_id', null)
+  return kept?.length === 7 && hidden?.length === 0
+})
+
 console.log('— Anonymous')
 await check('cannot sign up', async () => {
   const { error } = await anon().auth.signUp({ email: `intruder${Date.now()}@test.ru`, password: 'Intruder-2026!' })
