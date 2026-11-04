@@ -27,13 +27,45 @@ const [north, cottage, warehouse] = objects
 
 type Step = 'in_progress' | 'review' | 'accepted' | 'rework'
 const tasks: { object: string; title: string; description: string; who: 'w1' | 'w2'; path: Step[]; reviewer?: 'manager2' }[] = [
-  { object: north.id, title: 'Залить фундамент', description: 'Бетон М300, по проекту секции А.', who: 'w1', path: ['in_progress', 'review', 'accepted'] },
-  { object: north.id, title: 'Монтаж опалубки 2 этажа', description: 'Щитовая опалубка, проверить отметки.', who: 'w1', path: ['in_progress', 'review'] },
+  {
+    object: north.id,
+    title: 'Залить фундамент',
+    description: 'Бетон М300, по проекту секции А.',
+    who: 'w1',
+    path: ['in_progress', 'review', 'accepted'],
+  },
+  {
+    object: north.id,
+    title: 'Монтаж опалубки 2 этажа',
+    description: 'Щитовая опалубка, проверить отметки.',
+    who: 'w1',
+    path: ['in_progress', 'review'],
+  },
   { object: north.id, title: 'Армирование перекрытия', description: 'Сетка 200×200, арматура А500 Ø12.', who: 'w2', path: ['in_progress'] },
-  { object: cottage.id, title: 'Кладка стен 1 этажа', description: 'Газобетон D500, клей, армирование каждого 4-го ряда.', who: 'w2', path: ['in_progress', 'review', 'rework'] },
+  {
+    object: cottage.id,
+    title: 'Кладка стен 1 этажа',
+    description: 'Газобетон D500, клей, армирование каждого 4-го ряда.',
+    who: 'w2',
+    path: ['in_progress', 'review', 'rework'],
+  },
   { object: cottage.id, title: 'Установка окон', description: '6 окон ПВХ, монтаж по ГОСТ.', who: 'w1', path: [] },
-  { object: warehouse.id, title: 'Устройство кровли', description: 'Профлист С44, утеплитель 150 мм.', who: 'w2', path: ['in_progress', 'review', 'accepted'], reviewer: 'manager2' },
-  { object: warehouse.id, title: 'Электрика: разводка', description: 'Освещение и розетки по схеме ЭМ-1.', who: 'w2', path: [] },
+  {
+    object: cottage.id,
+    title: 'Гидроизоляция фундамента',
+    description: 'Обмазочная гидроизоляция в 2 слоя, фото каждого участка.',
+    who: 'w2',
+    path: ['in_progress', 'review'],
+  },
+  {
+    object: warehouse.id,
+    title: 'Устройство кровли',
+    description: 'Профлист С44, утеплитель 150 мм.',
+    who: 'w2',
+    path: ['in_progress', 'review', 'accepted'],
+    reviewer: 'manager2',
+  },
+  { object: warehouse.id, title: 'Электрика: разводка', description: 'Освещение и розетки по схеме ЭМ-1.', who: 'w1', path: [] },
 ]
 
 for (const t of tasks) {
@@ -54,3 +86,29 @@ for (const t of tasks) {
   }
   console.log(`+ ${t.title} (${t.path.at(-1) ?? 'new'})`)
 }
+
+// Reassignment and an edit, so the history shows more than status changes.
+const { data: electrics } = await manager2.db.from('tasks').select('id').eq('title', 'Электрика: разводка').single()
+const { error: reassignError } = await manager2.db
+  .from('tasks')
+  .update({ assignee_id: w2.id, description: 'Освещение и розетки по схеме ЭМ-1, щит ЩР-2.' })
+  .eq('id', electrics!.id)
+if (reassignError) throw reassignError
+console.log('~ Электрика: разводка (reassigned to worker2)')
+
+// A deleted task: its history stays in the audit log ("Все задачи" -> "Удалённые").
+const { data: fence, error: fenceError } = await manager.db
+  .from('tasks')
+  .insert({
+    title: 'Временное ограждение площадки',
+    description: 'Профлист 2 м по периметру.',
+    object_id: warehouse.id,
+    assignee_id: w1.id,
+  })
+  .select()
+  .single()
+if (fenceError) throw fenceError
+await w1.db.rpc('change_task_status', { p_task_id: fence.id, p_to: 'in_progress' })
+const { error: deleteError } = await manager.db.from('tasks').delete().eq('id', fence.id)
+if (deleteError) throw deleteError
+console.log('- Временное ограждение площадки (deleted, history kept)')

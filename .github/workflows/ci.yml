@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-placeholder
+
+  # Runs the access-control checks against the real Supabase project.
+  # Needs repository secrets; skipped when they are not configured (e.g. in forks).
+  security:
+    runs-on: ubuntu-latest
+    needs: check
+    if: ${{ vars.RUN_SECURITY_CHECK == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: |
+          cat > .env <<ENV
+          VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          MANAGER_EMAIL=manager@test.ru
+          MANAGER_PASSWORD=${{ secrets.MANAGER_PASSWORD }}
+          MANAGER2_EMAIL=manager2@test.ru
+          MANAGER2_PASSWORD=${{ secrets.MANAGER2_PASSWORD }}
+          WORKER1_EMAIL=worker1@test.ru
+          WORKER1_PASSWORD=${{ secrets.WORKER1_PASSWORD }}
+          WORKER2_EMAIL=worker2@test.ru
+          WORKER2_PASSWORD=${{ secrets.WORKER2_PASSWORD }}
+          ENV
+      - run: npm run security-check

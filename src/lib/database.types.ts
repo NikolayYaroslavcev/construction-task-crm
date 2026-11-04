@@ -58,30 +58,39 @@ export type Database = {
           changed_by: string
           comment: string | null
           created_at: string
+          event: string
+          from_assignee: string | null
           from_status: Database["public"]["Enums"]["task_status"] | null
           id: number
-          task_id: string | null
+          task_id: string
           task_title: string
+          to_assignee: string | null
           to_status: Database["public"]["Enums"]["task_status"]
         }
         Insert: {
           changed_by: string
           comment?: string | null
           created_at?: string
+          event?: string
+          from_assignee?: string | null
           from_status?: Database["public"]["Enums"]["task_status"] | null
           id?: never
-          task_id?: string | null
+          task_id: string
           task_title: string
+          to_assignee?: string | null
           to_status: Database["public"]["Enums"]["task_status"]
         }
         Update: {
           changed_by?: string
           comment?: string | null
           created_at?: string
+          event?: string
+          from_assignee?: string | null
           from_status?: Database["public"]["Enums"]["task_status"] | null
           id?: never
-          task_id?: string | null
+          task_id?: string
           task_title?: string
+          to_assignee?: string | null
           to_status?: Database["public"]["Enums"]["task_status"]
         }
         Relationships: [
@@ -93,10 +102,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "task_status_history_task_id_fkey"
-            columns: ["task_id"]
+            foreignKeyName: "task_status_history_from_assignee_fkey"
+            columns: ["from_assignee"]
             isOneToOne: false
-            referencedRelation: "tasks"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_status_history_to_assignee_fkey"
+            columns: ["to_assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -158,7 +174,70 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      deleted_task_history: {
+        Row: {
+          changed_by: string | null
+          comment: string | null
+          created_at: string | null
+          event: string | null
+          from_assignee: string | null
+          from_status: Database["public"]["Enums"]["task_status"] | null
+          id: number | null
+          task_id: string | null
+          task_title: string | null
+          to_assignee: string | null
+          to_status: Database["public"]["Enums"]["task_status"] | null
+        }
+        Insert: {
+          changed_by?: string | null
+          comment?: string | null
+          created_at?: string | null
+          event?: string | null
+          from_assignee?: string | null
+          from_status?: Database["public"]["Enums"]["task_status"] | null
+          id?: number | null
+          task_id?: string | null
+          task_title?: string | null
+          to_assignee?: string | null
+          to_status?: Database["public"]["Enums"]["task_status"] | null
+        }
+        Update: {
+          changed_by?: string | null
+          comment?: string | null
+          created_at?: string | null
+          event?: string | null
+          from_assignee?: string | null
+          from_status?: Database["public"]["Enums"]["task_status"] | null
+          id?: number | null
+          task_id?: string | null
+          task_title?: string | null
+          to_assignee?: string | null
+          to_status?: Database["public"]["Enums"]["task_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_status_history_from_assignee_fkey"
+            columns: ["from_assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_status_history_to_assignee_fkey"
+            columns: ["to_assignee"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       change_task_status: {
